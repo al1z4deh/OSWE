@@ -31,11 +31,19 @@ Week 4: Review and consolidate your knowledge by completing practice exams and m
 Here are some links to resources you can use for this plan:
 
 Web Application Security Testing Fundamentals: https://portswigger.net/web-security
+
 Web Application Hacker's Handbook: https://www.amazon.com/dp/1118026470
+
 OWASP Top 10: https://owasp.org/Top10/
+
 OWASP Juice Shop: https://owasp.org/www-project-juice-shop/
+
 Python for Penetration Testing: https://www.udemy.com/course/python-for-penetration-testers/
+
 Metasploit Unleashed: https://www.offensive-security.com/metasploit-unleashed/
+
 HackTheBox: https://www.hackthebox.eu/
+
 OSWE virtual lab environment: https://www.offensive-security.com/labs/individual/
+
 Remember, this plan is just a suggestion, and you can adjust it according to your needs and schedule. The most important thing is to practice regularly and continuously challenge yourself. Good luck with your studies!
