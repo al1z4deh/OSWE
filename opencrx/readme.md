@@ -13,3 +13,14 @@ Faza 4: HSQLDB Girişi
 Faza 5: RCE Java Dil Rutinləri vasitəsilə
 POC Skriptlər
 ```
+```
+Modulun Ümumi Baxışı
+Hədəf Tətbiq: openCRX CRM Sistemi
+Texnologiyalar: Java, Apache TomEE, HSQLDB
+Hücum Zənciri:
+Parol Sıfırlama Bypass → Təsdiqlənmiş Giriş → XXE → DB Etimadnamələri → Fayl Yazma → RCE
+Zəiflik Xülasəsi
+ZəiflikTəsirCVE NövüParol Sıfırlama Token BypassHesab Ələ KeçirməAuth BypassXML Xarici Obyekt (XXE)Fayl OxumaInformation DisclosureHSQLDB Açıq PortDB GirişiMisconfigurationJava Language RoutinesFayl YazmaCode InjectionJSP Upload & ExecutionRCERemote Code Execution
+
+Laboratoriya Mühitinin Qurulması
+```
