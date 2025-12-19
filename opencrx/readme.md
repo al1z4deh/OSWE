@@ -1,5 +1,5 @@
-## OpenCRX Tam İstismar Bələdçisi
-# OSWE Sertifikat Hazırlığı üçün Azərbaycanca Tam Təlimat
+# OpenCRX Tam İstismar Bələdçisi
+## OSWE Sertifikat Hazırlığı üçün Azərbaycanca Tam Təlimat
 Bu repo openCRX CRM sistemindəki zəifliklərin təhlili və istismarı üçün tam bələdçi və hazır POC skriptlər ehtiva edir.📋 Mündəricat
 Modulun Ümumi Baxışı
 Laboratoriya Mühitinin Qurulması
