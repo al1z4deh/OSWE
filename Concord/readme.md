@@ -2,9 +2,9 @@
 
 > Single-file Python tool that weaponizes a CORS misconfiguration in **Walmart Concord** into authenticated remote code execution via a malicious Groovy flow, and ships an interactive reverse shell handler.
 
-A victim with an authenticated Concord session visits an attacker-controlled page. Because Concord reflects a permissive CORS policy **and** the browser is told to attach credentials, the attacker's JavaScript can ride the victim's session to upload a malicious `concord.yml` process definition. Concord resolves a Groovy dependency, executes the embedded flow, and a reverse shell lands on the attacker.
+A victim with an authenticated Concord session visits an attacker-controlled page. Because Concord reflects a permissive CORS policy **and** the browser is told to attach credentials, the attacker's JavaScript rides the victim's session to upload a malicious `concord.yml` process definition. Concord resolves a Groovy dependency, executes the embedded flow, and a reverse shell lands on the attacker.
 
-This repo contains a single script that orchestrates the **entire** chain: payload hosting, credential/exfil capture, process-creation feedback, and the shell handler — all in one terminal.
+This repo contains a single script that orchestrates the **entire** chain — payload hosting, credential/exfil capture, process-creation feedback, and the shell handler — all in one terminal.
 
 ---
 
@@ -20,7 +20,11 @@ For authorized testing and education only. Run this **exclusively** against syst
 - [Attack Chain](#attack-chain)
 - [Requirements](#requirements)
 - [Usage](#usage)
-- [Step-by-Step Walkthrough](#step-by-step-walkthrough)
+- [Walkthrough](#walkthrough)
+  - [1. Setup & Launch](#1-setup--launch)
+  - [2. The Payload (`concord.yml`)](#2-the-payload-concordyml)
+  - [3. Delivery via the Simulator](#3-delivery-via-the-simulator)
+  - [4. Full Exploitation — Exfil → RCE → Shell](#4-full-exploitation--exfil--rce--shell)
 - [The Payload Explained](#the-payload-explained)
 - [The `// FIXME` — Why a Naive Fetch Fails](#the--fixme--why-a-naive-fetch-fails)
 - [Troubleshooting](#troubleshooting)
@@ -39,7 +43,7 @@ Three independent weaknesses combine into a full RCE chain:
 | 2 | **No CSRF protection** | The process-creation endpoint accepts a cross-origin `multipart/form-data` POST with only the session cookie — no anti-CSRF token. |
 | 3 | **Arbitrary Groovy execution** | A `concord.yml` flow can declare a Maven dependency and run an inline Groovy `body`, i.e. arbitrary JVM code, by design. |
 
-Individually each is a "config smell." Chained, an unauthenticated attacker who can get a logged-in user to open a link achieves code execution on the Concord host.
+Individually each is a "config smell." Chained, an attacker who gets a logged-in user to open a link achieves code execution on the Concord host.
 
 ---
 
@@ -65,7 +69,7 @@ Individually each is a "config smell." Chained, an unauthenticated attacker who 
 - A Concord instance reachable from the victim under the internal hostname `concord:8001` (lab DNS), or adjust the endpoint in the script.
 - Python 3.8+ on the attacker box.
 - Ports **80** (payload + exfil) and **9000** (reverse shell) free on the attacker box. Port 80 needs `sudo`.
-- A way to get the authenticated victim to load your page (in a lab, the activity simulator does this).
+- A way to get the authenticated victim to load your page (in the lab, the activity simulator does this).
 
 ---
 
@@ -74,66 +78,52 @@ Individually each is a "config smell." Chained, an unauthenticated attacker who 
 ```bash
 git clone https://github.com/<your-user>/concord-rce.git
 cd concord-rce
-sudo python3 exploit.py <ATTACKER_IP>
+sudo python3 avto.py <ATTACKER_IP>
 ```
 
 Then deliver `http://<ATTACKER_IP>/` to the authenticated victim. Everything streams into the single terminal: payload served → identity exfil → process `instanceId` → interactive shell on `:9000`.
 
-> 📸 **SCREENSHOT 1 — Tool startup**
-> *Place here: a screenshot of the script just after launch, showing the three listeners coming up (HTTP payload server, reverse shell listener, and the "deliver this URL" line). Crop out any real internal IPs you don't want public.*
-
 ---
 
-## Step-by-Step Walkthrough
+## Walkthrough
 
-### 1. Build the Groovy reverse-shell flow
+### 1. Setup & Launch
 
-The core weapon is a `concord.yml` that declares the Groovy runtime as a Maven dependency and runs an inline reverse shell in its `body`. The script templates your attacker IP and port straight into this YAML, so you never hand-edit it.
+Run the tool with your attacker IP. It spins up three things in parallel threads:
 
-Key correctness notes for the YAML:
-- **Indentation is load-bearing.** YAML + the `body: |` block scalar are whitespace-sensitive; a stray tab breaks the flow.
-- The dependency line pins a Groovy version (`groovy-all:pom:2.5.8`). If the host can't resolve it, the process errors before the shell ever fires.
-
-> 📸 **SCREENSHOT 2 — The generated `concord.yml` / payload page**
-> *Place here: the rendered `index.html` source (e.g. in Mousepad or `view-source:`) showing the YAML block with your IP/port substituted. This mirrors the classic "payload in the editor" shot.*
-
-### 2. Host the payload + start the listeners
-
-`exploit.py` spins up three things in parallel threads:
-
-1. An HTTP server on **:80** that serves the malicious `index.html`.
+1. An HTTP server on **:80** serving the malicious `index.html` payload.
 2. The same server captures any `?msg=` / `?err=` callback and prints the decoded value (identity, process response, or JS errors).
 3. A raw-socket reverse shell handler on **:9000**.
 
 No separate `python -m http.server` or `nc` needed.
 
-### 3. Deliver the link to the authenticated victim
+![Tool launch — three listeners come up](screenshots/01-launch.png)
 
-Hand `http://<ATTACKER_IP>/` to the logged-in user. In a lab, point the activity simulator at your attacker IP and trigger it.
+### 2. The Payload (`concord.yml`)
 
-> 📸 **SCREENSHOT 3 — Simulator / delivery step**
-> *Place here: the simulator page (or however you deliver the URL) with your attacker IP entered and the trigger button. If you're doing this manually in a browser, a shot of the victim browser loading the page works too.*
+The core weapon is a `concord.yml` that declares the Groovy runtime as a Maven dependency and runs an inline reverse shell in its `body`. The script templates your attacker IP and port straight into this YAML, so you never hand-edit it.
 
-### 4. Capture identity (CORS read)
+Correctness notes:
+- **Indentation is load-bearing.** YAML + the `body: |` block scalar are whitespace-sensitive; a stray tab breaks the flow.
+- The dependency pins a Groovy version (`groovy-all:pom:2.5.8`). If the host can't resolve it, the process errors before the shell fires.
 
-The page first hits `/api/service/console/whoami` with credentials. A non-401 response means the visitor is authenticated; the JSON identity is exfiltrated back to your server and printed.
+![The generated YAML payload](screenshots/02-payload.png)
 
-> 📸 **SCREENSHOT 4 — Identity exfil**
-> *Place here: the tool terminal line showing the decoded `whoami` JSON (realm / username / displayName). This is the "we phished an authenticated user" proof.*
+### 3. Delivery via the Simulator
 
-### 5. Trigger RCE (process creation)
+Hand `http://<ATTACKER_IP>/` to the logged-in user. In the lab, point the activity simulator at your attacker IP and trigger it.
 
-Once authenticated, the page POSTs the `concord.yml` as multipart form-data to `/api/v1/process`. Concord returns an `instanceId` + `ok: true`, which is also exfiltrated and printed — confirming the process was accepted.
+![Delivering the URL via the activity simulator](screenshots/03-simulator.png)
 
-> 📸 **SCREENSHOT 5 — Process created (`instanceId`, `ok: true`)**
-> *Place here: the terminal line showing the process-creation JSON response.*
+### 4. Full Exploitation — Exfil → RCE → Shell
 
-### 6. Catch the shell
+Once the authenticated victim loads the page, the whole chain fires in sequence:
 
-The Groovy flow executes and dials back to **:9000**. The handler drops you into an interactive shell in the same terminal.
+1. **Identity exfil** — `/whoami` returns a non-401, the identity JSON (`realm` / `username` / `displayName`) is exfiltrated. Here the victim is `concordAgent`.
+2. **Process created** — the `concord.yml` is POSTed to `/api/v1/process`; Concord returns `instanceId` + `ok: true`.
+3. **Shell caught** — the Groovy flow dials back to `:9000` and drops into an interactive shell. `whoami` returns `concord`, and `ls` shows the process workspace (`_attachments`, `_instanceId`, `_main.json`, `concord.yml`).
 
-> 📸 **SCREENSHOT 6 — Shell caught**
-> *Place here: the "SHELL CAUGHT" banner plus output of `id; hostname; ip a` (or whatever you run first). This is the money shot for the repo.*
+![Identity exfil, process creation, and reverse shell — all in one terminal](screenshots/04-pwned.png)
 
 ---
 
@@ -205,14 +195,14 @@ Fixing both lines is the difference between "exfil works but nothing happens" an
 | Process accepted (`ok: true`) but no shell | Groovy dependency didn't resolve on the host, or `:9000` listener port doesn't match the YAML port. |
 | Garbled `?msg=` in logs | Use `encodeURIComponent` (already in this tool). |
 | Shell connects then dies | Host egress filtering, or the inline loop hit `exitValue()` early — re-fire delivery. |
-| Exfil hits a different box | `ATTACKER_IP` in the payload and the IP you serve from must be the **same** Kali interface. |
+| Exfil hits a different box | `ATTACKER_IP` in the payload and the IP you serve from must be the **same** interface. |
 
 ---
 
 ## Detection & Remediation
 
 **Defenders:**
-- Replace the reflective CORS policy with a strict allow-list; never combine `Access-Control-Allow-Origin: *`-style reflection with `Allow-Credentials: true`.
+- Replace the reflective CORS policy with a strict allow-list; never combine origin reflection with `Access-Control-Allow-Credentials: true`.
 - Add anti-CSRF tokens (or `SameSite=Strict` cookies) to state-changing endpoints like process creation.
 - Restrict or sandbox the ability of flows to pull arbitrary dependencies and run inline Groovy; gate process creation behind stronger authZ.
 - Egress-filter the Concord host so it can't open arbitrary outbound TCP.
