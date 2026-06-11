@@ -97,7 +97,8 @@ Run the tool with your attacker IP. It spins up three things in parallel threads
 
 No separate `python -m http.server` or `nc` needed.
 
-![Tool launch — three listeners come up](screenshots/01-launch.png)
+<img width="758" height="190" alt="image" src="https://github.com/user-attachments/assets/107f9474-1b39-439a-9579-cb3a10512306" />
+
 
 ### 2. The Payload (`concord.yml`)
 
@@ -113,7 +114,8 @@ Correctness notes:
 
 Hand `http://<ATTACKER_IP>/` to the logged-in user. In the lab, point the activity simulator at your attacker IP and trigger it.
 
-![Delivering the URL via the activity simulator](screenshots/03-simulator.png)
+<img width="753" height="738" alt="image" src="https://github.com/user-attachments/assets/eac903e1-9461-436b-a2a6-573112f967b6" />
+
 
 ### 4. Full Exploitation — Exfil → RCE → Shell
 
@@ -123,7 +125,8 @@ Once the authenticated victim loads the page, the whole chain fires in sequence:
 2. **Process created** — the `concord.yml` is POSTed to `/api/v1/process`; Concord returns `instanceId` + `ok: true`.
 3. **Shell caught** — the Groovy flow dials back to `:9000` and drops into an interactive shell. `whoami` returns `concord`, and `ls` shows the process workspace (`_attachments`, `_instanceId`, `_main.json`, `concord.yml`).
 
-![Identity exfil, process creation, and reverse shell — all in one terminal](screenshots/04-pwned.png)
+<img width="906" height="626" alt="image" src="https://github.com/user-attachments/assets/ae405093-8c53-4cda-8530-01df7e2234c7" />
+
 
 ---
 
